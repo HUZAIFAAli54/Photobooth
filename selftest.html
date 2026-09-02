@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SnapBooth self-test</title>
+  <style>
+    body { background: #111; color: #ddd; font: 13px/1.6 Consolas, monospace; padding: 24px; }
+    .pass { color: #6ee7a8; } .fail { color: #ff7a7a; } h1 { font-size: 15px; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>SnapBooth self-test</h1>
+  <pre id="out">running…</pre>
+
+  <script src="src/lib/filters.js"></script>
+  <script src="src/lib/shapes.js"></script>
+  <script src="src/lib/frames.js"></script>
+  <script src="src/lib/gif.js"></script>
+  <script src="src/lib/media.js"></script>
+  <script src="src/data/events.js"></script>
+  <script>
+  /* Exercises the non-React half of the booth end to end: frame generation,
+     canvas compositing, the hand-rolled GIF encoder (verified by handing the
+     result back to the browser's own decoder) and the video recorder path.
+     Run headless with a fake camera, or just open it in a browser. */
+  (function () {
+    var lines = [], failures = 0;
+    var out = document.getElementById('out');
+    function p(s) { lines.push(s); out.textContent = lines.join('\n'); }
+    function ok(cond, msg) {
+      if (!cond) failures++;
+      p((cond ? 'PASS  ' : 'FAIL  ') + msg);
+      return cond;
+    }
+
+    (async function run() {
+      try {
+        /* ---- frames ---- */
+        var ev = PB.EVENTS[0];
+        var set = PB.frameSet(ev, 640, 480, 'Test Caption', 'September 2, 2026');
+        ok(set.length === 9, 'frameSet -> 9 entries (none + 8 styles)');
+
+        var img = await PB.loadImage(set[1].url);
+        ok(img.width === 640 && img.height === 480, 'frame SVG rasterises at 640x480, got ' + img.width + 'x' + img.height);
+
+        var bad = [];
+        for (var i = 0; i < PB.EVENTS.length; i++) {
+          var fs = PB.frameSet(PB.EVENTS[i], 320, 240, PB.EVENTS[i].name, 'sub');
+          for (var j = 1; j < fs.length; j++) {
+            try { await PB.loadImage(fs[j].url); }
+            catch (e) { bad.push(PB.EVENTS[i].id + '/' + fs[j].id); }
+          }
+        }
+        ok(bad.length === 0, 'all 8 events x 8 frames rasterise (64 SVGs)' + (bad.length ? ' - broken: ' + bad.join(', ') : ''));
+
+        /* ---- camera ---- */
+        var stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } });
+        var v = document.createElement('video');
+        v.srcObject = stream; v.muted = true; v.playsInline = true; v.autoplay = true;
+        document.body.appendChild(v);
+        v.style.width = '160px';
+        await v.play().catch(function () {});
+        await new Promise(function (r) {
+          var tries = 0;
+          (function tick() { if (v.videoWidth || tries++ > 300) r(); else requestAnimationFrame(tick); })();
+        });
+        ok(v.videoWidth > 0, 'camera stream live at ' + v.videoWidth + 'x' + v.videoHeight);
+
+        /* ---- photo path ---- */
+        var raw = PB.grabRaw(v, 720, 540, true);
+        ok(!!raw && raw.width === 720 && raw.height === 540, 'grabRaw -> 720x540 canvas');
+
+        var frameImg = await PB.loadImage(set[1].url);
+        var comp = PB.compose(raw, PB.filterCss('vivid'), frameImg);
+        var png = await PB.canvasToBlob(comp, 'image/png');
+        ok(!!png && png.size > 1000, 'composed PNG blob = ' + (png ? png.size : 0) + ' bytes (canvas untainted by SVG frame)');
+
+        /* every filter must be accepted by ctx.filter */
+        var filterBad = [];
+        for (var f = 0; f < PB.FILTERS.length; f++) {
+          var c = PB.makeCanvas(40, 30), cx = c.getContext('2d');
+          cx.filter = PB.FILTERS[f].css;
+          if (cx.filter !== PB.FILTERS[f].css && PB.FILTERS[f].css !== 'none') filterBad.push(PB.FILTERS[f].id);
+        }
+        ok(filterBad.length === 0, 'all 12 filters accepted by canvas ctx.filter' + (filterBad.length ? ' - rejected: ' + filterBad.join(', ') : ''));
+
+        /* ---- GIF path ---- */
+        var gw = 240, gh = 180, buffers = [];
+        for (var k = 0; k < 4; k++) {
+          var r2 = PB.grabRaw(v, gw, gh, true);
+          var cc = PB.compose(r2, PB.filterCss('warm'), frameImg);
+          buffers.push(cc.getContext('2d').getImageData(0, 0, gw, gh).data);
+          await new Promise(function (r) { setTimeout(r, 80); });
+        }
+        var gif = await PB.encodeGif(buffers, gw, gh, 120);
+        ok(gif.size > 800, 'GIF encoded, ' + gif.size + ' bytes from 4 frames');
+
+        var head = new Uint8Array(await gif.slice(0, 6).arrayBuffer());
+        ok(String.fromCharCode.apply(null, head) === 'GIF89a', 'GIF89a signature written');
+
+        var gimg = await PB.loadImage(URL.createObjectURL(gif));
+        ok(gimg.width === gw && gimg.height === gh,
+           'browser decoded our GIF at ' + gimg.width + 'x' + gimg.height + ' (LZW + palette valid)');
+
+        /* ---- video path ---- */
+        var mime = PB.pickVideoMime();
+        ok(!!mime, 'MediaRecorder mime negotiated: ' + mime);
+        if (mime) {
+          var vc = PB.makeCanvas(320, 240), vctx = vc.getContext('2d');
+          var painting = true;
+          (function paint() {
+            if (!painting) return;
+            vctx.filter = PB.filterCss('cool');
+            PB.drawSource(vctx, v, 320, 240, true);
+            vctx.filter = 'none';
+            vctx.drawImage(frameImg, 0, 0, 320, 240);
+            requestAnimationFrame(paint);
+          })();
+          var cs = vc.captureStream(30);
+          var rec = new MediaRecorder(cs, { mimeType: mime });
+          var chunks = [];
+          rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+          var stopped = new Promise(function (r) { rec.onstop = r; });
+          rec.start(100);
+          await new Promise(function (r) { setTimeout(r, 1200); });
+          rec.stop();
+          await stopped;
+          painting = false;
+          var vblob = new Blob(chunks, { type: mime });
+          ok(vblob.size > 1000, 'canvas recording produced ' + vblob.size + ' bytes of ' + PB.extFor(mime));
+        }
+
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        p('');
+        p(failures === 0 ? 'RESULT: ALL PASS' : 'RESULT: ' + failures + ' FAILURE(S)');
+      } catch (err) {
+        p('THREW: ' + (err && err.stack ? err.stack : err));
+        p('RESULT: THREW');
+      }
+      document.title = 'selftest-done';
+
+      /* ?report=http://host/ posts the log back, for running this headless */
+      var m = /[?&]report=([^&]+)/.exec(location.search);
+      if (m) new Image().src = decodeURIComponent(m[1]) + '?d=' + encodeURIComponent(lines.join('\n'));
+    })();
+  })();
+  </script>
+</body>
+</html>

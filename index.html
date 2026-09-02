@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SnapBooth &mdash; Event Photo Booth</title>
+  <link rel="stylesheet" href="src/index.css" />
+
+  <!-- React + in-browser JSX compiler. No build step, no other libraries. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+</head>
+<body>
+  <div id="root">
+    <div class="boot">Loading SnapBooth&hellip;</div>
+  </div>
+
+  <!-- plain JS helpers (no JSX) -->
+  <script src="src/lib/filters.js"></script>
+  <script src="src/lib/shapes.js"></script>
+  <script src="src/lib/frames.js"></script>
+  <script src="src/lib/gif.js"></script>
+  <script src="src/lib/media.js"></script>
+  <script src="src/data/events.js"></script>
+
+  <!-- React components (JSX, compiled in the browser by Babel) -->
+  <script type="text/babel" src="src/components/Icons.jsx"></script>
+  <script type="text/babel" src="src/components/EventSelector.jsx"></script>
+  <script type="text/babel" src="src/components/ModeBar.jsx"></script>
+  <script type="text/babel" src="src/components/CameraStage.jsx"></script>
+  <script type="text/babel" src="src/components/OptionRails.jsx"></script>
+  <script type="text/babel" src="src/components/Editor.jsx"></script>
+  <script type="text/babel" src="src/components/Gallery.jsx"></script>
+  <script type="text/babel" src="src/App.jsx"></script>
+  <script type="text/babel">
+    ReactDOM.createRoot(document.getElementById('root')).render(<PB.App />);
+  </script>
+</body>
+</html>
