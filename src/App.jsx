@@ -256,7 +256,13 @@ window.PB = window.PB || {};
     /* ---- render ----------------------------------------------------------- */
 
     const result = capture
-      ? { kind: capture.kind, previewUrl: preview ? preview.url : null, url: capture.url }
+      ? {
+          kind: capture.kind,
+          previewUrl: preview ? preview.url : null,
+          url: capture.url,
+          blob: preview ? preview.blob : null,
+          filename: preview ? preview.filename : null
+        }
       : null;
 
     return (
@@ -297,6 +303,7 @@ window.PB = window.PB || {};
                   result={result}
                   aspect={aspect}
                   busy={busy || (!preview && capture.kind !== "video" ? "Rendering…" : null)}
+                  shareText={event ? event.name : "SnapBooth"}
                   onRetake={retake}
                   onDownload={downloadCurrent}
                   onPrint={printCurrent}

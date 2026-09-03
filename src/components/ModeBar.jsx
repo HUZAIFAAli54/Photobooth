@@ -3,9 +3,10 @@ window.PB = window.PB || {};
   "use strict";
 
   PB.MODES = [
-    { id: "photo", label: "Photo",       icon: "Camera" },
-    { id: "gif",   label: "GIF",         icon: "Layers" },
-    { id: "video", label: "Video (10s)", icon: "Video" }
+    { id: "photo",  label: "Photo",       icon: "Camera" },
+    { id: "gif",    label: "GIF",         icon: "Layers" },
+    { id: "video",  label: "Video (10s)", icon: "Video" },
+    { id: "upload", label: "Upload",      icon: "Upload" }
   ];
 
   PB.ModeBar = function ModeBar({ mode, onChange, disabled }) {

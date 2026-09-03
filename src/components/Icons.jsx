@@ -100,6 +100,46 @@ window.PB = window.PB || {};
     </svg>
   );
 
+  const Upload = (p) => (
+    <svg {...base(p)}>
+      <path d="M12 16V5" />
+      <path d="M7.5 9.5L12 5l4.5 4.5" />
+      <path d="M4.5 19h15" />
+    </svg>
+  );
+
+  const Share = (p) => (
+    <svg {...base(p)}>
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="17.5" cy="6" r="2.5" />
+      <circle cx="17.5" cy="18" r="2.5" />
+      <path d="M8.2 10.8l7-3.6M8.2 13.2l7 3.6" />
+    </svg>
+  );
+
+  const QrCode = (p) => (
+    <svg {...base(p)}>
+      <rect x="3" y="3" width="7" height="7" rx="1.2" />
+      <rect x="14" y="3" width="7" height="7" rx="1.2" />
+      <rect x="3" y="14" width="7" height="7" rx="1.2" />
+      <path d="M14 14h3v3h-3zM19.5 14v2.5M14 19.5h2.5M19.5 19.5h1.5" />
+    </svg>
+  );
+
+  const Mail = (p) => (
+    <svg {...base(p)}>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="M4 7l8 6 8-6" />
+    </svg>
+  );
+
+  const Chat = (p) => (
+    <svg {...base(p)}>
+      <path d="M4 12a8 8 0 1113.9 5.4L20 20l-3-1.2A8 8 0 014 12z" />
+      <path d="M8.5 10.5c.5 2.5 2.5 4.5 5 5" />
+    </svg>
+  );
+
   const Booth = (p) => (
     <svg {...base(p)} strokeWidth="2">
       <rect x="4" y="4" width="6.5" height="6.5" rx="1.6" fill="currentColor" stroke="none" />
@@ -109,5 +149,5 @@ window.PB = window.PB || {};
     </svg>
   );
 
-  PB.Icons = { Camera, Layers, Video, Shutter, Square, Download, Printer, Retake, Flip, Close, Sparkle, Booth };
+  PB.Icons = { Camera, Layers, Video, Shutter, Square, Download, Printer, Retake, Flip, Close, Sparkle, Booth, Upload, Share, QrCode, Mail, Chat };
 })();

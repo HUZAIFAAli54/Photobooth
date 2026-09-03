@@ -19,11 +19,14 @@ window.PB = window.PB || {};
 
     const videoRef = useRef(null);
     const cancelRef = useRef(false);
+    const fileInputRef = useRef(null);
     const [count, setCount] = useState(null);   /* 3,2,1,0 = "Smile!" */
     const [flash, setFlash] = useState(false);
     const [running, setRunning] = useState(false);
     const [progress, setProgress] = useState(0);
     const [busy, setBusy] = useState(null);
+    const [dragOver, setDragOver] = useState(false);
+    const [uploadErr, setUploadErr] = useState(null);
 
     useEffect(() => {
       const v = videoRef.current;
@@ -133,6 +136,27 @@ window.PB = window.PB || {};
       onResult({ kind: "video", blob, mime, url: URL.createObjectURL(blob), seconds: VIDEO_SECONDS });
     }
 
+    async function handleFiles(fileList) {
+      const file = fileList && fileList[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setUploadErr("That's not an image file — pick a JPG or PNG.");
+        return;
+      }
+      setUploadErr(null);
+      const url = URL.createObjectURL(file);
+      try {
+        const img = await PB.loadImage(url);
+        const raw = PB.grabRaw(img, aspect.w, aspect.h, false);
+        if (!raw) throw new Error("Could not read that image.");
+        onResult({ kind: "photo", raw });
+      } catch (err) {
+        setUploadErr("Could not load that image: " + (err.message || err));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
     async function start() {
       if (running || !ready) return;
       setRunning(true);
@@ -166,6 +190,43 @@ window.PB = window.PB || {};
       mode === "photo" ? "3-second countdown, then one shot."
       : mode === "gif" ? `${GIF_FRAMES} frames · loops forever`
       : `${VIDEO_SECONDS} seconds with sound · filter & frame are baked in`;
+
+    if (mode === "upload") {
+      return (
+        <div className="stage-wrap">
+          <div
+            className={"stage upload-zone" + (dragOver ? " drag" : "")}
+            style={stageStyle}
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              handleFiles(e.dataTransfer.files);
+            }}
+          >
+            {frameUrl && <img className="frame-overlay" src={frameUrl} alt="" />}
+            <div className="upload-hint">
+              <PB.Icons.Upload width="34" height="34" />
+              <div>Click or drop a photo here</div>
+              <span>JPG or PNG · cropped to fit the frame</span>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+          </div>
+          <div className="shutter-note">
+            {uploadErr || "Upload a guest's own photo, then style it with filters and frames like any other shot."}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="stage-wrap">
